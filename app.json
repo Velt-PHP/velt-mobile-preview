@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Velt Preview",
+    "slug": "velt-mobile-preview",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.velt.preview",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Velt Preview uses the camera to scan Velt preview QR codes."
+      }
+    },
+    "android": {
+      "package": "com.velt.preview",
+      "permissions": [
+        "CAMERA"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Velt Preview to scan Velt preview QR codes."
+        }
+      ]
+    ]
+  }
+}
