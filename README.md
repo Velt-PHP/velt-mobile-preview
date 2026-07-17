@@ -30,6 +30,8 @@ php bin/velt preview 192.168.1.20:8000
 ```
 
 Use the local network IP that your phone can reach.
+The Android build allows local `http://` preview URLs, so a phone on the same
+Wi-Fi can fetch `http://192.168.x.x:8000/api/preview/{id}` directly.
 
 ## Test and export
 

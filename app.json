@@ -23,6 +23,7 @@
     },
     "android": {
       "package": "com.velt.preview",
+      "usesCleartextTraffic": true,
       "permissions": [
         "CAMERA"
       ],
