@@ -25,11 +25,17 @@ npm start
 Generate a preview session from a Velt skeleton project:
 
 ```bash
-php bin/velt serve 0.0.0.0:8000
+php bin/velt serve
+php bin/velt preview
+```
+
+If the automatic IP detection is wrong, pass the local network IP that your
+phone can reach:
+
+```bash
 php bin/velt preview 192.168.1.20:8000
 ```
 
-Use the local network IP that your phone can reach.
 The Android build allows local `http://` preview URLs, so a phone on the same
 Wi-Fi can fetch `http://192.168.x.x:8000/api/preview/{id}` directly.
 
