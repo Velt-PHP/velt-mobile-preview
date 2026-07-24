@@ -74,7 +74,7 @@ function normalizePreviewUrl(rawUrl) {
 
   if (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(parsed.hostname)) {
     throw new Error(
-      'Ce QR pointe vers le PC local, pas vers le telephone. Lance php bin/velt serve 0.0.0.0:8000 puis php bin/velt preview IP_DU_PC:8000 avec le telephone sur le meme Wi-Fi.'
+      'Ce QR pointe vers une adresse locale du PC. Pour le telephone, lance php bin/velt serve IP_DU_PC:8000 puis php bin/velt preview IP_DU_PC:8000 avec le telephone sur le meme Wi-Fi.'
     );
   }
 

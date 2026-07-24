@@ -5,8 +5,9 @@ Minimal React Native client for Velt preview QR sessions.
 ## What it does
 
 - scans a Velt preview QR code;
+- lets you enter a preview URL manually;
 - fetches the encoded preview URL;
-- displays the first `Text` message from the JSON payload;
+- renders the Velt preview JSON payload;
 - reloads the same preview URL on demand.
 
 The first skeleton preview returns:
@@ -29,10 +30,12 @@ php bin/velt serve
 php bin/velt preview
 ```
 
-If the automatic IP detection is wrong, pass the local network IP that your
-phone can reach:
+`php bin/velt serve` starts the web app on `http://127.0.0.1:8000`. A physical
+phone cannot reach the PC through `127.0.0.1`, so for mobile preview use the
+local network IP that your phone can reach:
 
 ```bash
+php bin/velt serve 192.168.1.20:8000
 php bin/velt preview 192.168.1.20:8000
 ```
 

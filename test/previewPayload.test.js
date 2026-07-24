@@ -45,6 +45,6 @@ test('adds http to local network host previews without a scheme', () => {
 test('rejects loopback preview URLs because phones cannot reach the PC localhost', () => {
   assert.throws(
     () => normalizePreviewUrl('http://127.0.0.1:8000/api/preview/demo'),
-    /pointe vers le PC local/
+    /adresse locale du PC/
   );
 });

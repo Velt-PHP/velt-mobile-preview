@@ -21,7 +21,8 @@ const logo = require('./assets/icon.png');
 
 function App() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [mode, setMode] = useState('scan');
+  const [mode, setMode] = useState('home');
+  const [manualUrl, setManualUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewPayload, setPreviewPayload] = useState(null);
   const [error, setError] = useState(null);
@@ -60,7 +61,7 @@ function App() {
           : caught instanceof Error && caught.name === 'AbortError'
             ? 'Connexion trop lente ou impossible. Verifie que le telephone et le PC sont sur le meme Wi-Fi.'
             : caught instanceof TypeError
-              ? 'Connexion impossible. Verifie que le telephone et le PC sont sur le meme Wi-Fi et que le serveur Velt est lance sur 0.0.0.0:8000.'
+              ? 'Connexion impossible. Verifie que le serveur Velt tourne et utilise l IP Wi-Fi du PC pour le telephone, pas 127.0.0.1.'
               : caught instanceof Error
                 ? caught.message
                 : 'Unable to load preview.';
@@ -78,8 +79,35 @@ function App() {
     loadPreview(data);
   }, [loadPreview, mode]);
 
+  const openScan = useCallback(async () => {
+    setError(null);
+
+    if (permission?.granted) {
+      setMode('scan');
+      return;
+    }
+
+    const result = await requestPermission();
+
+    if (result?.granted) {
+      setMode('scan');
+      return;
+    }
+
+    setError('Autorise la camera pour scanner un QR, ou saisis l adresse manuellement.');
+  }, [permission?.granted, requestPermission]);
+
+  const openManual = useCallback(() => {
+    setError(null);
+    setMode('manual');
+  }, []);
+
+  const submitManualUrl = useCallback(() => {
+    loadPreview(manualUrl);
+  }, [loadPreview, manualUrl]);
+
   const reset = useCallback(() => {
-    setMode('scan');
+    setMode('home');
     setPreviewUrl(null);
     setPreviewPayload(null);
     setError(null);
@@ -91,18 +119,68 @@ function App() {
     }
   }, [loadPreview, previewUrl]);
 
-  if (!permission) {
+  if (mode === 'home') {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.home}>
+          <Image source={logo} style={styles.logo} />
+          <Text style={styles.homeTitle}>Velt Preview</Text>
+          <Text style={styles.homeSubtitle}>
+            Connecte une app Velt depuis un QR code ou depuis une adresse de preview.
+          </Text>
+          {error ? <Text style={styles.inlineError}>{error}</Text> : null}
+          <View style={styles.homeActions}>
+            <ActionButton label="Scanner un QR" onPress={openScan} />
+            <ActionButton label="Ecrire l adresse" onPress={openManual} variant="secondary" />
+          </View>
+          <Text style={styles.homeHint}>
+            Web local: http://127.0.0.1:8000. Telephone: utilise l IP Wi-Fi du PC, par exemple http://192.168.1.20:8000/api/preview/ID.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (mode === 'manual') {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.home}>
+          <Image source={logo} style={styles.logo} />
+          <Text style={styles.homeTitle}>Adresse preview</Text>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            onChangeText={setManualUrl}
+            onSubmitEditing={submitManualUrl}
+            placeholder="http://192.168.1.20:8000/api/preview/ID"
+            returnKeyType="go"
+            style={styles.manualInput}
+            value={manualUrl}
+          />
+          <View style={styles.homeActions}>
+            <ActionButton label="Ouvrir" onPress={submitManualUrl} />
+            <ActionButton label="Retour" onPress={reset} variant="secondary" />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (mode === 'scan' && !permission) {
     return <View style={styles.center} />;
   }
 
-  if (!permission.granted) {
+  if (mode === 'scan' && !permission.granted) {
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.center}>
           <Image source={logo} style={styles.logo} />
-          <Text style={styles.text}>Camera permission is required.</Text>
-          <Button title="Allow camera" onPress={requestPermission} />
+          <Text style={styles.text}>Autorise la camera pour scanner un QR Velt.</Text>
+          <Button title="Autoriser la camera" onPress={openScan} />
         </View>
       </SafeAreaView>
     );
@@ -157,7 +235,7 @@ function App() {
           <Text style={styles.message}>{error}</Text>
           <View style={styles.actions}>
             {previewUrl ? <ActionButton label="Reload" onPress={reload} /> : null}
-            <ActionButton label="Scan" onPress={reset} variant="secondary" />
+            <ActionButton label="Accueil" onPress={reset} variant="secondary" />
           </View>
         </View>
       ) : (
@@ -175,7 +253,7 @@ function App() {
           </ScrollView>
           <View style={styles.previewBottomBar}>
             <ActionButton label="Reload" onPress={reload} />
-            <ActionButton label="Scan" onPress={reset} variant="secondary" />
+            <ActionButton label="Accueil" onPress={reset} variant="secondary" />
           </View>
         </View>
       )}
@@ -322,6 +400,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+  },
+  home: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  homeTitle: {
+    color: '#111827',
+    fontFamily: 'Poppins',
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 36,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  homeSubtitle: {
+    color: '#4b5563',
+    fontFamily: 'Poppins',
+    fontSize: 16,
+    lineHeight: 23,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  homeActions: {
+    gap: 10,
+    marginTop: 4,
+  },
+  homeHint: {
+    color: '#6b7280',
+    fontFamily: 'Poppins',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 18,
+    textAlign: 'center',
+  },
+  inlineError: {
+    color: '#b91c1c',
+    fontFamily: 'Poppins',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  manualInput: {
+    borderColor: '#d1d5db',
+    borderWidth: 1,
+    color: '#111827',
+    fontFamily: 'Poppins',
+    fontSize: 15,
+    marginBottom: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
   },
   overlay: {
     flex: 1,
