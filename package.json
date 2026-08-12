@@ -1,7 +1,7 @@
 {
   "name": "velt-mobile-preview",
-  "version": "0.1.2",
-  "description": "Minimal mobile preview client for Velt QR preview sessions.",
+  "version": "0.2.0-alpha.1",
+  "description": "Experimental Android companion for versioned Velt preview sessions.",
   "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
@@ -9,16 +9,18 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "export": "expo export --platform android",
-    "test": "node --test"
+    "test": "node --test",
+    "doctor": "expo-doctor",
+    "check": "npm test && expo-doctor && expo export --platform android"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "expo": "~54.0.0",
     "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "react": "19.1.0",
     "react-native": "0.81.5"
   },
-  "devDependencies": {},
   "private": false,
   "license": "MIT"
 }

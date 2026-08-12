@@ -1,5 +1,5 @@
 const React = require('react');
-const { useCallback, useState } = React;
+const { useCallback, useEffect, useRef, useState } = React;
 const {
   ActivityIndicator,
   Button,
@@ -15,7 +15,9 @@ const {
   View,
 } = require('react-native');
 const { CameraView, useCameraPermissions } = require('expo-camera');
-const { normalizePreviewUrl } = require('./src/previewPayload');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+const { fetchPreview } = require('./src/previewClient');
+const { addRecentProject, loadRecentProjects, saveRecentProjects } = require('./src/recentProjects');
 
 const logo = require('./assets/icon.png');
 
@@ -26,39 +28,36 @@ function App() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewPayload, setPreviewPayload] = useState(null);
   const [error, setError] = useState(null);
+  const [capabilities, setCapabilities] = useState(null);
+  const [recentProjects, setRecentProjects] = useState([]);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const loadingRef = useRef(false);
 
-  const loadPreview = useCallback(async (url) => {
-    setMode('loading');
+  useEffect(() => {
+    loadRecentProjects(AsyncStorage).then(setRecentProjects).catch(() => setRecentProjects([]));
+  }, []);
+
+  const loadPreview = useCallback(async (url, options = {}) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    if (!options.silent) setMode('loading');
     setError(null);
 
     try {
-      const normalizedUrl = normalizePreviewUrl(url);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-      let response;
-      let payload;
-
-      setPreviewUrl(normalizedUrl);
-
-      try {
-        response = await fetch(normalizedUrl, { signal: controller.signal });
-        const body = await response.text();
-        payload = body ? JSON.parse(body) : {};
-      } finally {
-        clearTimeout(timeout);
-      }
-
-      if (!response.ok) {
-        throw new Error(payload?.error?.message || 'Unable to load preview.');
-      }
-
-      setPreviewPayload(payload);
+      const result = await fetchPreview(url);
+      setPreviewUrl(result.url);
+      setPreviewPayload(result.payload);
+      setCapabilities(result.capabilities);
+      const nextRecent = addRecentProject(recentProjects, {
+        url: result.url,
+        name: result.payload.screen || 'Velt project',
+      });
+      setRecentProjects(nextRecent);
+      saveRecentProjects(AsyncStorage, nextRecent).catch(() => {});
       setMode('preview');
     } catch (caught) {
       const message =
-        caught instanceof SyntaxError
-          ? 'La preview repond, mais pas en JSON Velt. Verifie que l URL scannee pointe vers /api/preview/{id}.'
-          : caught instanceof Error && caught.name === 'AbortError'
+        caught instanceof Error && caught.name === 'AbortError'
             ? 'Connexion trop lente ou impossible. Verifie que le telephone et le PC sont sur le meme Wi-Fi.'
             : caught instanceof TypeError
               ? 'Connexion impossible. Verifie que le serveur Velt tourne et utilise l IP Wi-Fi du PC pour le telephone, pas 127.0.0.1.'
@@ -67,9 +66,17 @@ function App() {
                 : 'Unable to load preview.';
 
       setError(message);
-      setMode('error');
+      if (!options.silent) setMode('error');
+    } finally {
+      loadingRef.current = false;
     }
-  }, []);
+  }, [recentProjects]);
+
+  useEffect(() => {
+    if (mode !== 'preview' || !previewUrl) return undefined;
+    const timer = setInterval(() => loadPreview(previewUrl, { silent: true }), 2500);
+    return () => clearInterval(timer);
+  }, [loadPreview, mode, previewUrl]);
 
   const handleBarcodeScanned = useCallback(({ data }) => {
     if (mode !== 'scan' || !data) {
@@ -110,6 +117,7 @@ function App() {
     setMode('home');
     setPreviewUrl(null);
     setPreviewPayload(null);
+    setCapabilities(null);
     setError(null);
   }, []);
 
@@ -134,6 +142,17 @@ function App() {
             <ActionButton label="Scanner un QR" onPress={openScan} />
             <ActionButton label="Ecrire l adresse" onPress={openManual} variant="secondary" />
           </View>
+          {recentProjects.length > 0 ? (
+            <View style={styles.recentList}>
+              <Text style={styles.recentTitle}>Projets récents</Text>
+              {recentProjects.map((project) => (
+                <TouchableOpacity key={project.url} style={styles.recentProject} onPress={() => loadPreview(project.url)}>
+                  <Text style={styles.recentProjectName}>{project.name}</Text>
+                  <Text numberOfLines={1} style={styles.recentProjectUrl}>{project.url}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
           <Text style={styles.homeHint}>
             Web local: http://127.0.0.1:8000. Telephone: utilise l IP Wi-Fi du PC, par exemple http://192.168.1.20:8000/api/preview/ID.
           </Text>
@@ -242,7 +261,20 @@ function App() {
         <View style={styles.previewScreen}>
           <View style={styles.previewHeader}>
             <Text style={styles.previewTitle}>{previewPayload?.screen || 'Velt Preview'}</Text>
+            <TouchableOpacity onPress={() => setShowDiagnostics((value) => !value)}>
+              <Text style={styles.diagnosticsButton}>Diagnostic</Text>
+            </TouchableOpacity>
           </View>
+          {showDiagnostics ? (
+            <View style={styles.diagnosticsPanel}>
+              <Text style={styles.diagnosticsText}>Protocole: v{capabilities?.schemaVersion || '?'}</Text>
+              <Text style={styles.diagnosticsText}>URL: {previewUrl}</Text>
+              <Text style={styles.diagnosticsText}>
+                Composants non supportés: {capabilities?.unsupportedComponents?.join(', ') || 'aucun'}
+              </Text>
+              <Text style={styles.diagnosticsText}>Hot reload: actif (2,5 s)</Text>
+            </View>
+          ) : null}
           <ScrollView contentContainerStyle={styles.previewContent}>
             {(previewPayload?.components || []).map((component, index) =>
               renderVeltComponent(component, `root-${index}`, {
@@ -311,6 +343,26 @@ function renderVeltComponent(component, key, context) {
       <TouchableOpacity key={key} style={styles.veltButton} activeOpacity={0.72}>
         <Text style={styles.veltButtonText}>{component.content || 'Button'}</Text>
       </TouchableOpacity>
+    );
+  }
+
+  if (type === 'Image') {
+    const source = component.src || props.src || props.uri;
+    return typeof source === 'string' && source !== ''
+      ? <Image key={key} source={{ uri: source }} accessibilityLabel={props.alt} style={styles.veltImage} />
+      : null;
+  }
+
+  if (type === 'Divider') {
+    return <View key={key} style={styles.veltDivider} />;
+  }
+
+  if (type === 'Toggle') {
+    return (
+      <View key={key} style={styles.veltToggle}>
+        <Text style={styles.veltText}>{component.label || props.label || ''}</Text>
+        <Text style={styles.veltStrong}>{props.value ? 'ON' : 'OFF'}</Text>
+      </View>
     );
   }
 
@@ -581,12 +633,56 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   previewTitle: {
     color: '#111827',
     fontFamily: 'Poppins',
     fontSize: 18,
     fontWeight: '700',
+  },
+  diagnosticsButton: {
+    color: '#2563eb',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  diagnosticsPanel: {
+    backgroundColor: '#eff6ff',
+    borderBottomColor: '#bfdbfe',
+    borderBottomWidth: 1,
+    gap: 3,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  diagnosticsText: {
+    color: '#1e3a8a',
+    fontSize: 12,
+  },
+  recentList: {
+    marginTop: 22,
+    gap: 8,
+  },
+  recentTitle: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  recentProject: {
+    borderColor: '#dbeafe',
+    borderWidth: 1,
+    padding: 10,
+  },
+  recentProjectName: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  recentProjectUrl: {
+    color: '#6b7280',
+    fontSize: 11,
+    marginTop: 2,
   },
   previewBottomBar: {
     borderTopColor: '#e5e7eb',
@@ -695,6 +791,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins',
     fontSize: 15,
     lineHeight: 21,
+  },
+  veltImage: {
+    width: '100%',
+    minHeight: 180,
+    resizeMode: 'contain',
+  },
+  veltDivider: {
+    backgroundColor: '#e5e7eb',
+    height: 1,
+    width: '100%',
+  },
+  veltToggle: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
   },
 });
 

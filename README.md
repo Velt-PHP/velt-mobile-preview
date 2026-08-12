@@ -1,55 +1,68 @@
 # Velt Mobile Preview
 
-Minimal React Native client for Velt preview QR sessions.
+Experimental Android companion for connecting to Velt development sessions. This alpha is not yet the final Compose/NativePHP companion and must not be described as production-ready.
 
-## What it does
+## Implemented in this alpha
 
-- scans a Velt preview QR code;
-- lets you enter a preview URL manually;
-- fetches the encoded preview URL;
-- renders the Velt preview JSON payload;
-- reloads the same preview URL on demand.
+- QR scanning and manual network URL entry;
+- strict URL normalization that rejects phone-inaccessible loopback addresses;
+- versioned Preview schema validation and capability diagnostics;
+- structured HTTP/protocol errors and request timeout;
+- recent-project history stored on device;
+- automatic refresh every 2.5 seconds with manual reload;
+- Velt rendering for containers, text, links, buttons, inputs, alerts, images, dividers and toggles;
+- navigation between known Velt preview routes;
+- Android JS bundle export and EAS APK profile.
 
-The first skeleton preview returns:
+## Not complete yet
 
-```text
-Welcome!
-```
+- the application renderer still uses React Native, not the target Jetpack Compose renderer;
+- PHP is not embedded in this companion;
+- device API calls do not yet traverse the real `nativephp_call()`/JNI bridge;
+- signed session negotiation, WebSocket diffs, reconnect backoff and discovery remain pending;
+- no instrumented emulator/device test is present;
+- an exported Metro bundle is not an APK; APK/AAB builds require EAS or Gradle;
+- unresolved Expo/Metro advisories block a stable tag.
 
-## Run locally
+The complete architecture and release gates live in [`velt-mobile-architecture`](https://github.com/Velt-PHP/velt-mobile-architecture).
+
+## Run
 
 ```bash
-npm install
+npm ci
 npm start
 ```
 
-Generate a preview session from a Velt skeleton project:
+From a cross-platform Velt project:
 
 ```bash
-php bin/velt serve
-php bin/velt preview
+velt serve 0.0.0.0:8000
+velt preview 192.168.1.20:8000
 ```
 
-`php bin/velt serve` starts the web app on `http://127.0.0.1:8000`. A physical
-phone cannot reach the PC through `127.0.0.1`, so for mobile preview use the
-local network IP that your phone can reach:
+The phone and computer must share a reachable network. `127.0.0.1` on the phone is the phone itself and is rejected.
 
-```bash
-php bin/velt serve 192.168.1.20:8000
-php bin/velt preview 192.168.1.20:8000
-```
-
-The Android build allows local `http://` preview URLs, so a phone on the same
-Wi-Fi can fetch `http://192.168.x.x:8000/api/preview/{id}` directly.
-
-## Test and export
+## Validate
 
 ```bash
 npm test
+npx expo-doctor
 npm run export
+npm audit
 ```
 
-## Native PHP runtime
+## Build an internal APK
 
-No files are copied from `php-bin-main` for this first client. The app only needs
-camera access and HTTP fetch for the MVP flow.
+```bash
+eas build --platform android --profile preview
+```
+
+The preview profile uses EAS-managed Android credentials. Production signing and Play delivery are separate release gates.
+
+## Security note
+
+Cleartext local-network traffic is enabled only because this is a development companion. The final release architecture separates debug and production network security configurations.
+
+## License
+
+MIT

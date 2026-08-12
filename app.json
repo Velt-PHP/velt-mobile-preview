@@ -2,7 +2,7 @@
   "expo": {
     "name": "Velt Preview",
     "slug": "velt-mobile-preview",
-    "version": "0.1.2",
+    "version": "0.2.0-alpha.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.velt.preview",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": [
         "CAMERA"
       ],
